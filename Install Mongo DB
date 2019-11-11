@@ -1,0 +1,167 @@
+--- 
+
+- hosts: windows 
+
+  connection: winrm 
+
+  tasks: 
+
+ 
+ 
+
+    - name: Check installation and finish play if necessary 
+
+      win_service: 
+
+        name: MongoDB 
+
+      register: mongo_info 
+
+ 
+ 
+
+    - name: Finish play 
+
+      meta: end_host 
+
+      when: mongo_info.exists == True 
+
+ 
+ 
+
+    - name: Create directory 
+
+      win_file: 
+
+        path: C:\Temp\mongodb 
+
+        state: directory 
+
+ 
+ 
+
+    - name: Check if installation file exists 
+
+      win_stat: 
+
+        path: C:\Temp\mongodb\mongodb-win32-x86_64-2012plus-4.2.0-signed.msi 
+
+      register: stat_result_pre 
+
+ 
+ 
+
+    - name: Copy installation file 
+
+      win_copy: 
+
+        src: /home/k01425/ansible/mongodb/installation/mongodb-win32-x86_64-2012plus-4.2.0-signed.msi 
+
+        dest: C:\Temp\mongodb\mongodb-win32-x86_64-2012plus-4.2.0-signed.msi 
+
+      when: stat_result_pre.stat.exists == False 
+
+ 
+ 
+
+    - name: Check if installation file exists 
+
+      win_stat: 
+
+        path: C:\Temp\mongodb\mongodb-win32-x86_64-2012plus-4.2.0-signed.msi 
+
+      register: stat_result 
+
+ 
+ 
+
+    - name: Check if MongoDB is installed before try to install 
+
+      win_service: 
+
+        name: MongoDB 
+
+      register: service_info_before_install 
+
+ 
+ 
+
+    - name: Install mongodb 
+
+      win_command: msiexec.exe /l*v mdbinstall.log  /qb /i C:\Temp\mongodb\mongodb-win32-x86_64-2012plus-4.2.0-signed.msi ADDLOCAL="ServerNoService,ServerService,Router,Client,MonitoringTools,ImportExportTools,MiscellaneousTools" /norestart 
+
+      register: win_command_output 
+
+      failed_when: false 
+
+      when: stat_result.stat.exists == True and service_info_before_install.exists == False 
+
+    - debug: var=win_command_output 
+
+ 
+ 
+
+    - name: Pause 
+
+      pause: 
+
+        minutes: 1 
+
+ 
+ 
+
+    - name: Check if MongoDB is installed after installation 
+
+      win_service: 
+
+        name: MongoDB 
+
+      register: service_info_after_install 
+
+ 
+ 
+
+    - name: Delete installation file 
+
+      win_file: 
+
+        path: C:\Temp\mongodb\mongodb-win32-x86_64-2012plus-4.2.0-signed.msi 
+
+        state: absent 
+
+      when: service_info_after_install.exists == True 
+
+ 
+ 
+
+    - name: Delete directory 
+
+      win_file: 
+
+        path: C:\Temp\mongodb 
+
+        state: absent 
+
+      when: service_info_after_install.exists == True 
+
+ 
+ 
+
+    - name: Copy log file to ansible 
+
+      fetch: 
+
+        src: mdbinstall.log 
+
+        dest: /home/k01425/ansible/mongodb/logs/ 
+
+      when: service_info_after_install.exists == True 
+
+ 
+ 
+
+    - name: Reboot VM 
+
+      win_reboot: 
+
+      when: service_info_after_install.exists == True 
