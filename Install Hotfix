@@ -1,0 +1,17 @@
+
+k01677@rga01tools02:~/ansible$ cat playbook-updatewindows.yaml
+# Install updates on windows
+---
+- hosts: windows
+  connection: winrm
+  tasks:
+  - name: Install updates
+    win_updates:
+      category_names:
+        - DefinitionUpdates
+        - SecurityUpdates
+        - Updates
+        - CriticalUpdates
+      reboot: yes
+      reboot_timeout: 1200
+k01677@rga01tools02:~/ansible$
