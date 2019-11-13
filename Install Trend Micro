@@ -1,0 +1,56 @@
+---
+- hosts: windows
+  connection: winrm
+  tasks:
+    - name: Create directory
+      win_file:
+        path: C:\Temp\trendMicro
+        state: directory
+
+    - name: Copy installation file
+      win_copy:
+        src: /home/k01425/ansible/trend_micro/installation/OSCE11_x64.msi
+        dest: C:\Temp\trendMicro/OSCE11_x64.msi
+
+    - name: Check if installation file exists
+      win_stat:
+        path: C:\Temp\trendMicro/OSCE11_x64.msi
+      register: stat_result
+
+    - name: Install trend micro
+      win_command: msiexec.exe /l*v trendmicro_install.log  /qb /i C:\Temp\trendMicro\OSCE11_x64.msi /norestart
+      register: win_command_output
+      failed_when: false
+      when: stat_result.stat.exists == True
+    - debug: var=win_command_output
+
+    - name: Pause
+      pause:
+        minutes: 1
+
+    - name: Check if Trend micro is installed
+      win_service:
+        name: ntrtscan
+      register: service_info_after_install
+
+    - name: Delete installation file
+      win_file:
+        path: C:\Temp\trendMicro\OSCE11_x64.msi
+        state: absent
+      when: service_info_after_install.exists == True
+
+    - name: Delete directory
+      win_file:
+        path: C:\Temp\trendMicro
+        state: absent
+      when: service_info_after_install.exists == True
+
+    - name: Copy log file to ansible
+      fetch:
+        src: trendmicro_install.log
+        dest: /home/k01425/ansible/trend_micro/logs/
+      when: service_info_after_install.exists == True
+
+    - name: Reboot VM
+      win_reboot:
+      when: service_info_after_install.exists == True
