@@ -1,0 +1,65 @@
+##########################################
+##  Name:        patch_rhel7.yml
+##  Description: Playbook to patch rhel7 VMs. Shamelessly stolen
+##               from the internet.
+##  Creator:     Niklas Solsätra niklas.solsatra@trygghansa.se
+##
+##  Last changed by:  Niklas S 191106
+##  Version:  v1.0
+##
+##  Revision history
+##
+##  v1.0: Initial draft
+##
+---
+- hosts: linux
+  become: yes
+  tasks:
+
+    - name: check updates
+      shell: yum list updates | awk 'f;/Updated Packages/{f=1;}' | awk '{print $1}' | head -n -2
+      changed_when: updates.stdout_lines | length > 0
+      args:
+        warn: false
+      register: updates
+
+    - name: count packages marked for update
+      debug:
+        msg: "{{ updates.stdout_lines | length }} packages marked for update: {{ updates.stdout  }}"
+
+    - when: updates.stdout_lines | length > 0
+      block:
+        - name: ensure yum-utils exists
+          yum:
+            name: yum-utils
+            state: present
+
+        - name: install updates
+          yum:
+            name: "*"
+            state: latest
+
+        - name: reboot needed?
+          shell: needs-restarting -r
+          failed_when: false
+          register: reboot_required
+          changed_when: false
+
+    - when: updates.stdout_lines | length > 0 and reboot_required != 0
+      block:
+        - name: reboot server
+          shell: reboot
+          ignore_errors: true
+          changed_when: false
+          async: 1
+          poll: 0
+
+        - name: wait for VM to reboot
+          wait_for_connection:
+            timeout: 600
+            delay: 20
+          register: reboot_time
+
+        - name: reboot time
+          debug:
+            msg: "VM rebooted in {{ reboot_time.elapsed }} seconds"

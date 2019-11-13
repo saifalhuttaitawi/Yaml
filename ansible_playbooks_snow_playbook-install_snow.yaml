@@ -1,0 +1,43 @@
+---
+- hosts: windows
+  connection: winrm
+  tasks:
+
+    - name: Create directory
+      win_file:
+        path: C:\Temp\snow
+        state: directory
+
+    - name: Copy powershell script
+      win_copy:
+        src: /home/ansible/snow/installation/Install-SNOW.ps1
+        dest: C:\Temp\snow\Install-SNOW.ps1
+
+    - name: Check if installation file exists
+      win_stat:
+        path: C:\Temp\snow\Install-SNOW.ps1
+      register: stat_result
+
+    - name: Run powershell script
+      win_shell: C:\Temp\snow\Install-SNOW.ps1 {{ ansible_user }} {{ ansible_password }}
+      args:
+        chdir: C:\Temp\snow
+      become_user: ansible_user
+
+    - name: Pause
+      pause:
+        seconds: 30
+
+    - name: Check if snow is installed
+      win_service:
+        name: SnowInventoryAgent5
+      register: service_info_after_install
+
+    - name: Delete installation file
+      win_file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - C:\Temp\snow
+        - C:\sddc\Installers\SNOW
+      when: service_info_after_install.exists == True

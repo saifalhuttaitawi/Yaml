@@ -1,0 +1,52 @@
+---
+- hosts: windows
+  connection: winrm
+  tasks:
+    - name: Create directory
+      win_file:
+        path: C:\Temp\snow
+        state: directory
+
+    - name: Copy installation file
+      win_copy:
+        src: /home/ansible/snow/installation/CODANFORSIKRINGAS_snowagent-sios-6.3.0.x64.msi
+        dest: C:\Temp\snow\CODANFORSIKRINGAS_snowagent-sios-6.3.0.x64.msi
+
+    - name: Check if installation file exists
+      win_stat:
+        path: C:\Temp\snow\CODANFORSIKRINGAS_snowagent-sios-6.3.0.x64.msi
+      register: stat_result
+
+    - name: Install snow
+      win_command: msiexec.exe /l*v snow_install.log  /qb /i C:\Temp\snow\CODANFORSIKRINGAS_snowagent-sios-6.3.0.x64.msi /norestart
+      register: win_command_output
+      failed_when: false
+      when: stat_result.stat.exists == True
+    - debug: var=win_command_output
+
+    - name: Pause
+      pause:
+        minutes: 1
+
+    - name: Check if snow is installed
+      win_service:
+        name: SnowInventoryAgent5
+      register: service_info_after_install
+
+    - name: Delete installation file
+      win_file:
+        path: C:\Temp\snow\CODANFORSIKRINGAS_snowagent-sios-6.3.0.x64.msi
+        state: absent
+      when: service_info_after_install.exists == True
+
+    - name: Delete directory
+      win_file:
+        path: C:\Temp\snow
+        state: absent
+      when: service_info_after_install.exists == True
+
+    - name: Copy log file to ansible
+      fetch:
+        src: snow_install.log
+        dest: /home/ansible/snow/logs/
+      when: service_info_after_install.exists == True

@@ -1,0 +1,32 @@
+# Install updates on windows
+---
+- hosts: windows
+  connection: winrm
+  tasks:
+  - name: Install updates
+    win_updates:
+      category_names:
+        - DefinitionUpdates
+        - SecurityUpdates
+        - Updates
+        - CriticalUpdates
+      reboot: yes
+      reboot_timeout: 1200
+    ignore_errors: yes
+    register: updateOutput
+
+  - name: Reboot if necessary
+    win_reboot:
+      reboot_timeout: 1200
+    when: updateOutput.changed is defined and updateOutput.reboot_required is defined and updateOutput.changed == False and updateOutput.reboot_required == True
+
+  - name: Try again install updates
+    win_updates:
+      category_names:
+        - DefinitionUpdates
+        - SecurityUpdates
+        - Updates
+        - CriticalUpdates
+      reboot: yes
+      reboot_timeout: 1200
+    when: updateOutput.changed is defined and updateOutput.reboot_required is defined and updateOutput.changed == False and updateOutput.reboot_required == True

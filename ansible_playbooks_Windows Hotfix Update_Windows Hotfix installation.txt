@@ -1,0 +1,108 @@
+#Install win_hotfix 
+
+--- 
+
+- hosts: windows 
+
+  connection: winrm 
+
+  tasks: 
+
+    - name: Find if the update is already installed or not 
+
+      win_shell: wmic qfe list full | findstr /i KB4522007 
+
+      ignore_errors: true #( When failed) prevent the playbook from stop 
+
+      register: winShellOut 
+
+ 
+ 
+
+    - name : Failing 
+
+      fail: 
+
+        msg: "The Update was alreday installed! " 
+
+      when : winShellOut.failed is defined and winShellOut.failed == false 
+
+ 
+ 
+ 
+
+#2012 
+
+    - name: 2012 Copy the hotfix file to host 
+
+      win_copy: 
+
+        src: /home/k01677/ansible/hotfix/Explorer-11-for-Windows-Server-2012R2-KB4522007.msu 
+
+        dest: C:\ 
+
+      when: '(hostvars[inventory_hostname].ansible_distribution == "Microsoft Windows Server 2012 R2 Standard")' 
+
+    - name: 2012 Installing the hotfix 
+
+      win_hotfix: 
+
+        hotfix_kb: KB4522007 
+
+        source: C:\Explorer-11-for-Windows-Server-2012R2-KB4522007.msu 
+
+        state: present 
+
+        register: hotfix_install 
+
+      when: "(hostvars[inventory_hostname].ansible_distribution == 'Microsoft Windows Server 2012 R2 Standard')" 
+
+    - name: 2012 Cleaning 
+
+      win_file: 
+
+        path: C:/Explorer-11-for-Windows-Server-2012R2-KB4522007.msu 
+
+        state: absent 
+
+      when: "(hostvars[inventory_hostname].ansible_distribution == 'Microsoft Windows Server 2012 R2 Standard')" 
+
+ 
+ 
+ 
+
+#2016 
+
+    - name: 2016 Copy the hotfix file to host 
+
+      win_copy: 
+
+        src: /home/k01677/ansible/hotfix/Explorer-11-for-Windows-Server-2016-KB4522007.msu 
+
+        dest: C:\ 
+
+      when: "(hostvars[inventory_hostname].ansible_distribution == 'Microsoft Windows Server 2016 Standard')" 
+
+    - name: 2016 Installing the hotfix 
+
+      win_hotfix: 
+
+        hotfix_kb: KB4522010 
+
+        source: C:\Explorer-11-for-Windows-Server-2016-KB4522007.msu 
+
+        state: present 
+
+        register: hotfix_install 
+
+      when: "(hostvars[inventory_hostname].ansible_distribution == 'Microsoft Windows Server 2016 Standard')" 
+
+    - name: 2016 Cleaning 
+
+      win_file: 
+
+        path: C:/Explorer-11-for-Windows-Server-2016-KB4522007.msu 
+
+        state: absent 
+
+      when: "(hostvars[inventory_hostname].ansible_distribution == 'Microsoft Windows Server 2016 Standard')" 
